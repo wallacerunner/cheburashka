@@ -32,7 +32,7 @@ public class Windower {
 “@
 
 try {
-    $remote = Start-Job -ScriptBlock {ruby -W0 "$using:PSScriptRoot\remote_control\remote.rb"}
+
 
     $form = New-Object System.Windows.Forms.Form
 
@@ -46,6 +46,23 @@ try {
 
     $form.controls.Add($label)
 	
+	$initialization = New-Object System.Windows.Forms.Timer
+    $initialization.Interval = 10
+	$initialization.Add_Tick({
+		$script:remote = Start-Job -ScriptBlock {ruby -W0 "$using:PSScriptRoot\remote_control\remote.rb"}
+		
+		$script:initial_device = Get-AudioDevice -Playback
+		$new_device = Set-AudioDevice -ID '{0.0.0.00000000}.{de733fd6-06a8-475c-9a83-0d2d6afdb389}' -DefaultOnly
+
+		$script:banana = Start-Process "C:\Program Files (x86)\VB\Voicemeeter\voicemeeterpro.exe" -PassThru
+		$script:timer.Start()
+
+		$script:label.text = 'Банана запущена и спрятана', "`r`n", 'Звук переключён на ', $new_device.Name, "`r`n`r`n", 'Закрой меня чтобы вернуть всё взад' -join ''
+		
+		$script:initialization.stop()
+		$script:initialization.Dispose()
+	})
+	$script:initialization.Start()
 	
 	$banana_hidden = $false
 	$remote_launched = $false
@@ -84,13 +101,7 @@ try {
 		}
     })
 
-    $initial_device = Get-AudioDevice -Playback
-    $new_device = Set-AudioDevice -ID '{0.0.0.00000000}.{de733fd6-06a8-475c-9a83-0d2d6afdb389}' -DefaultOnly
 
-    $banana = Start-Process "C:\Program Files (x86)\VB\Voicemeeter\voicemeeterpro.exe" -PassThru
-    $timer.Start()
-
-    $label.text = 'Банана запущена и спрятана', "`r`n", 'Звук переключён на ', $new_device.Name, "`r`n`r`n", 'Закрой меня чтобы вернуть всё взад' -join ''
 	[void]$form.ShowDialog()
 }
 finally {
