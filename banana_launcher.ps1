@@ -32,15 +32,7 @@ public class Windower {
 “@
 
 try {
-    $remote = Start-Job -ScriptBlock {ruby -W0 "D:\code\ruby\remote_control\remote.rb"}
-    while ($remote.ChildJobs.Error.Length -le 0) { }#Start-Sleep -Milliseconds 100 }
-    $image_location = $remote.ChildJobs.error[0].ToString()
-    $image = [Drawing.Image]::FromFile( (Get-Item $image_location) )
-    $picturebox = [System.Windows.Forms.PictureBox]::new()
-    $picturebox.Size = $image.Size
-    $picturebox.Image = $image
-    $picturebox.location = '20,150'
-
+    $remote = Start-Job -ScriptBlock {ruby -W0 "$using:PSScriptRoot\remote_control\remote.rb"}
 
     $form = New-Object System.Windows.Forms.Form
 
@@ -53,21 +45,43 @@ try {
     $label.location = '20,115'
 
     $form.controls.Add($label)
-    $form.controls.Add($picturebox)
+	
+	
+	$banana_hidden = $false
+	$remote_launched = $false
 
     $timer = New-Object System.Windows.Forms.Timer
     $timer.Interval = 100
     $timer.Add_Tick({
 #         $wid = ($Script:banana | Get-Process).MainWindowHandle
-        $wid = $Script:banana.MainWindowHandle
-        $pop_wid = [Windower]::GetWindow($wid, 6)
-        if ([Windower]::IsWindowVisible($wid)) {
-            $null = [Windower]::ShowWindowAsync($wid, 0)
-        }
-        if ([Windower]::IsWindowVisible($pop_wid)) {
-            $null = [Windower]::ShowWindowAsync($pop_wid, 0)
-            $script:timer.stop()
-        }
+		if (-not $script:banana_hidden) {
+			$wid = $Script:banana.MainWindowHandle
+			$pop_wid = [Windower]::GetWindow($wid, 6)
+			if ([Windower]::IsWindowVisible($wid)) {
+				$null = [Windower]::ShowWindowAsync($wid, 0)
+			}
+			if ([Windower]::IsWindowVisible($pop_wid)) {
+				$null = [Windower]::ShowWindowAsync($pop_wid, 0)
+				$script:banana_hidden = $true
+			}
+		}
+		
+		if (-not $script:remote_launched -and
+			$script:remote.ChildJobs.Error.Length -ne 0) {
+			$image_location = $remote.ChildJobs.error[0].ToString()
+			$image = [Drawing.Image]::FromFile( (Get-Item $image_location) )
+			$picturebox = [System.Windows.Forms.PictureBox]::new()
+			$picturebox.Size = $image.Size
+			$picturebox.Image = $image
+			$picturebox.location = '20,150'
+			
+			$script:form.controls.Add($picturebox)
+			$script:remote_launched = $true
+		}
+		
+		if ($Script:remote_launched -and $Script:banana_hidden) {
+			$script:timer.stop()
+		}
     })
 
     $initial_device = Get-AudioDevice -Playback
@@ -77,7 +91,7 @@ try {
     $timer.Start()
 
     $label.text = 'Банана запущена и спрятана', "`r`n", 'Звук переключён на ', $new_device.Name, "`r`n`r`n", 'Закрой меня чтобы вернуть всё взад' -join ''
-    [void]$form.ShowDialog()
+	[void]$form.ShowDialog()
 }
 finally {
     Stop-Process $banana.Id
